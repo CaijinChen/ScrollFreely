@@ -1,0 +1,24 @@
+{
+  "name": "scrollfreely",
+  "version": "1.0.0",
+  "description": "a easy way to create your own scroll bar in your website.",
+  "main": "dist/scrollfreely.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git"
+  },
+  "keywords": [
+    "scroll bar",
+    "website",
+    "UI"
+  ],
+  "author": "Caijin Chen",
+  "license": "WTFPL",
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-env": "^1.7.0"
+  }
+}
