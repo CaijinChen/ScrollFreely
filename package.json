@@ -1,7 +1,7 @@
 {
   "name": "scrollfreely",
   "version": "1.0.0",
-  "description": "a easy way to create your own scroll bar in your website.",
+  "description": "an easy way to create your own scroll bar in your website.",
   "main": "dist/scrollfreely.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
