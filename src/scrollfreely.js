@@ -97,8 +97,7 @@
         this.isScrolling = false
         this.isHorizontal = false
         this.targetPos = 0
-        this.timer = null
-        this.timer0 = null
+        this.tempData = 0
         this.event.on("bodyChange", this.refresh.bind(this))
         this.init()
     }
@@ -227,102 +226,94 @@
         //鼠标拖动事件
         bindDrag: function(){
             let _this = this
+            let ff = function(pos){
+                _this.speed = Math.round(pos - _this.tempData)
+                _this.tempData = pos
+                if(_this.speed === 0){
+                    return
+                }
+                let target = 0
+                if(_this.isHorizontal){
+                    target = _this.barLeft.apply(_this.bars[0]) + _this.speed
+                    if(target < 0){
+                        target = 0
+                    }else if(target > _this.width() - _this.barWidth.apply(_this.bars[0])){
+                        target = _this.width() - _this.barWidth.apply(_this.bars[0])
+                    }
+                }else{
+                    target = _this.barTop.apply(_this.bars[1]) + _this.speed
+                    if(target < 0){
+                        target = 0
+                    }else if(target > _this.height() - _this.barHeight.apply(_this.bars[1])){
+                        target = _this.height() - _this.barHeight.apply(_this.bars[1])
+                    }
+                }
+                _this.targetPos = target
+                _this.movement()
+            }
+            let mouseMove = function(event){
+                event = event || window.event
+                log("mousemove")
+                ff(_this.isHorizontal ? event.clientX : event.clientY)
+            }
+            let mouseUp = function(){
+                _this.isScrolling  = false
+                let bar = _this.isHorizontal ? _this.bars[0] : _this.bars[1]
+                bar.style.backgroundColor = _this.options.foregroundColor.normal
+                log("mouseup")
+                _this.container.removeEventListener("mouseup", mouseUp)
+                _this.container.removeEventListener("mousemove", mouseMove)
+            }
             let f = function(event){
                 event = event || window.event
-                clearInterval(_this.timer)
-                clearInterval(_this.timer0)
                 let bar = event.target
+                _this.isScrolling = true
                 bar.style.backgroundColor = _this.options.foregroundColor.down
-                _this.isHorizontal = event.target === _this.bars[0]
-                let cur = _this.isHorizontal ? event.clientX : event.clientY
-                let func = function(pos){
-                    let step = Math.round(pos - cur)
-                    cur = pos
-                    _this.speed = Math.round(step * _this.options.frequency / _this.options.interval)
-                    if(_this.speed === 0){
-                        log("speed is 0")
-                        return
-                    }
-                    let target = 0
-                    if(_this.isHorizontal){
-                        target = _this.barLeft.apply(_this.bars[0]) + step
-                        if(target < 0){
-                            target = 0
-                        }else if(target > _this.width() - _this.barWidth.apply(_this.bars[0])){
-                            target = _this.width() - _this.barWidth.apply(_this.bars[0])
-                        }
-                    }else{
-                        target = _this.barTop.apply(_this.bars[1]) + step
-                        if(target < 0){
-                            target = 0
-                        }else if(target > _this.height() - _this.barHeight.apply(_this.bars[1])){
-                            target = _this.height() - _this.barHeight.apply(_this.bars[1])
-                        }
-                    }
-                    _this.targetPos = target
-                    _this.movement()
-                }
-                let mouseMove = function(event){
-                    event = event || window.event
-                    log("mousemove")
-                    func(_this.isHorizontal ? event.clientX : event.clientY)
-                    doc.removeEventListener("mousemove", mouseMove)
-                    doc.addEventListener("mouseup", mouseUp)
-                }
-                let mouseUp = function(){
-                    clearInterval(_this.timer0)
-                    _this.isScrolling  = false
-                    log('mouseup')
-                    bar.style.backgroundColor = _this.options.foregroundColor.normal
-                    doc.removeEventListener("mouseup", mouseUp)
-                }
-                doc.removeEventListener("mousedown", f)
-                _this.timer0 = setInterval(function(){
-                    log("add mousemove")
-                    doc.addEventListener("mousemove", mouseMove)
-                }, _this.options.interval)
+                _this.isHorizontal = bar === _this.bars[0]
+                _this.tempData = _this.isHorizontal ? event.clientX : event.clientY
+                log("mousedown")
+                _this.container.addEventListener("mousemove", mouseMove)
+                _this.container.addEventListener("mouseup", mouseUp)
             }
-            for(let i = 0; i < 2; i++){
-                if(_this.bars[i]){
-                    _this.bars[i].addEventListener('mouseout', ()=>{
-                        if(!_this.isScrolling){
-                            _this.bars[i].style.backgroundColor = _this.options.foregroundColor.normal
-                        }
-                        doc.removeEventListener('mousedown', f)
-                    })
-                    _this.bars[i].addEventListener('mouseover', ()=>{
-                        if(!_this.isScrolling){
-                            _this.bars[i].style.backgroundColor = _this.options.foregroundColor.hover
-                        }
-                        doc.addEventListener('mousedown', f)
-                    })
+            _this.container.addEventListener('mouseout', (event)=>{
+                event = event || window.event
+                let target = event.target
+                if(target !== _this.bars[0] && event.target !== _this.bars[1])
+                    return
+                log("mouseout")
+                if(!_this.isScrolling){
+                    target.style.backgroundColor = _this.options.foregroundColor.normal
                 }
-            }
+                _this.container.removeEventListener('mousedown', f)
+            })
+            _this.container.addEventListener('mouseover', (event)=>{
+                event = event || window.event
+                let target = event.target
+                if(target !== _this.bars[0] && event.target !== _this.bars[1])
+                    return
+                log("mouseover")
+                if(!_this.isScrolling){
+                    target.style.backgroundColor = _this.options.foregroundColor.hover
+                }
+                _this.container.addEventListener('mousedown', f)
+            })
         },
         //操作滚动条的运动
         movement: function(){
             let _this = this
-            clearInterval(_this.timer)
-            _this.isScrolling = true
-            _this.timer = setInterval(()=>{
-                let func = _this.isHorizontal ? _this.barLeft.bind(_this.bars[0]) : _this.barTop.bind(_this.bars[1])
-                let next = func() + _this.speed
-                if(_this.speed > 0 && next >= _this.targetPos){
-                    next = _this.targetPos
-                    clearInterval(_this.timer)
-                    _this.speed = 0
-                }else if (_this.speed < 0 && next <= _this.targetPos) {
-                    next = _this.targetPos
-                    clearInterval(_this.timer)
-                    _this.speed = 0
-                }
-                func(next, _this)
-            }, this.options.frequency)
+            let func = _this.isHorizontal ? _this.barLeft.bind(_this.bars[0]) : _this.barTop.bind(_this.bars[1])
+            let next = func() + _this.speed
+            if(_this.speed > 0 && next >= _this.targetPos){
+                next = _this.targetPos
+                _this.speed = 0
+            }else if (_this.speed < 0 && next <= _this.targetPos) {
+                next = _this.targetPos
+                _this.speed = 0
+            }
+            func(next, _this)
         },
         //容器宽高变化时更新滚动条的长度
         refresh: function(){
-            clearInterval(this.timer)
-            clearInterval(this.timer0)
             this.isScrolling = false
             this.isHorizontal = false
             this.targetPos = 0
