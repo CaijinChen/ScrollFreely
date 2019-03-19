@@ -57,7 +57,7 @@
         }
     }
 
-    let ScrollFreely = win.ScrollFreely = function(container, options){
+    let ScrollFreely = win.ScrollFreely = function(content, options){
         //滚动条设置选项
         options = options || {}
         options.foregroundColor = options.foregroundColor || {}
@@ -77,7 +77,7 @@
             //自定义容器内的样式，可以设置背景色、背景图片等
             containerStyle: options.containerStyle || "",
             //滚动条的宽（垂直滚动条）或高（水平滚动条）
-            width: parseInt(options.width) || 20,
+            width: parseInt(options.width) || 50,
             //动画的更新频率
             frequency: options.frequency || 10,
             //事件的监听间隔时间
@@ -91,15 +91,15 @@
         }
         this.bars = [null, null]
         this.container = null
-        this.body = this.find(container)
+        this.body = this.find(content)
         this.event = new Event()
         this.speed = 0
         this.isScrolling = false
         this.isHorizontal = false
         this.targetPos = 0
         this.tempData = 0
-        this.event.on("bodyChange", this.refresh.bind(this))
         this.init()
+        this.event.on("bodyChange", this.refresh.bind(this))
     }
 
     Object.assign(ScrollFreely.prototype, {
@@ -109,13 +109,14 @@
             if(!inner){
                 console.error("no content is specified.")
             }else{
-                let content = doc.querySelector(inner)
+                let content = doc.getElementById(inner)
                 if(!content){
                     console.error("content you specified is not exists")
                 }else{
                     body = doc.createElement("div")
                     this.container = doc.createElement('div')
-                    content.parentElement.replaceChild(this.container, content)
+                    let parent = content.parentElement
+                    parent.appendChild(this.container)
                     body.appendChild(content)
                     this.container.appendChild(body)
                     body.style.cssText = "position:absolute;top:0;left:0;"
@@ -132,9 +133,9 @@
         //初始化，创建样式，创建导航条等等
         init: function(){
             this.refresh()
-            this.checkBodyChange()
-            this.bindWheel()
+            this.refreshBar()
             this.bindDrag()
+            this.checkBodyChange()
         },
         //创建滚动条
         refreshBar: function(){
@@ -170,7 +171,7 @@
                 let bar = doc.createElement('div')
                 bk.style.cssText = "background-color:" + this.options.backgroundColor
                     + ";width:" + this.options.width + "px"
-                    + ";height:100%;position:absolute;top:0;right:0;"
+                    + ";height:100%;position:absolute;top:0;right:100px;"
                 bar.style.cssText = "background-color:" + this.options.foregroundColor.normal
                     + ";width:" + this.options.width + "px"
                     + ";position:absolute;top:0;right:0;"
@@ -207,7 +208,7 @@
                     this.event.emit("bodyChange")
                 }
                 setTimeout(()=>{
-                    check(contentWidth, contentHeight, width, height)
+                    check(newContentWidth, newContentHeight, newWidth, newHeight)
                 }, 500)
             }).bind(this)
             check(this.contentWidth(), this.contentHeight(), this.width(), this.height())
@@ -223,80 +224,86 @@
                 }
             }
         },
+        //计算动画的目的地
+        compute: function(pos){
+            let _this = this
+            _this.speed = Math.round(pos - _this.tempData)
+            _this.tempData = pos
+            if(_this.speed === 0){
+                return
+            }
+            let target = 0
+            if(_this.isHorizontal){
+                target = _this.barLeft.apply(_this.bars[0]) + _this.speed
+                if(target < 0){
+                    target = 0
+                }else if(target > _this.width() - _this.barWidth.apply(_this.bars[0])){
+                    target = _this.width() - _this.barWidth.apply(_this.bars[0])
+                }
+            }else{
+                target = _this.barTop.apply(_this.bars[1]) + _this.speed
+                if(target < 0){
+                    target = 0
+                }else if(target > _this.height() - _this.barHeight.apply(_this.bars[1])){
+                    target = _this.height() - _this.barHeight.apply(_this.bars[1])
+                }
+            }
+            _this.targetPos = target
+            _this.movement()
+        },
         //鼠标拖动事件
         bindDrag: function(){
+            log("container", this.container)
             let _this = this
-            let ff = function(pos){
-                _this.speed = Math.round(pos - _this.tempData)
-                _this.tempData = pos
-                if(_this.speed === 0){
-                    return
-                }
-                let target = 0
-                if(_this.isHorizontal){
-                    target = _this.barLeft.apply(_this.bars[0]) + _this.speed
-                    if(target < 0){
-                        target = 0
-                    }else if(target > _this.width() - _this.barWidth.apply(_this.bars[0])){
-                        target = _this.width() - _this.barWidth.apply(_this.bars[0])
-                    }
-                }else{
-                    target = _this.barTop.apply(_this.bars[1]) + _this.speed
-                    if(target < 0){
-                        target = 0
-                    }else if(target > _this.height() - _this.barHeight.apply(_this.bars[1])){
-                        target = _this.height() - _this.barHeight.apply(_this.bars[1])
-                    }
-                }
-                _this.targetPos = target
-                _this.movement()
-            }
             let mouseMove = function(event){
-                event = event || window.event
                 log("mousemove")
-                ff(_this.isHorizontal ? event.clientX : event.clientY)
+                event = event || window.event
+                _this.compute.bind(_this)(_this.isHorizontal ? event.clientX : event.clientY)
             }
             let mouseUp = function(){
+                log("mouseup")
                 _this.isScrolling  = false
                 let bar = _this.isHorizontal ? _this.bars[0] : _this.bars[1]
                 bar.style.backgroundColor = _this.options.foregroundColor.normal
-                log("mouseup")
+                _this.container.removeEventListener("mousemove", mouseMove)
                 _this.container.removeEventListener("mouseup", mouseUp)
                 _this.container.removeEventListener("mousemove", mouseMove)
+                _this.container.removeEventListener("mouseup", mouseUp)
             }
-            let f = function(event){
+            let mouseDown = function(event){
+                log("mousedown")
                 event = event || window.event
                 let bar = event.target
                 _this.isScrolling = true
                 bar.style.backgroundColor = _this.options.foregroundColor.down
                 _this.isHorizontal = bar === _this.bars[0]
                 _this.tempData = _this.isHorizontal ? event.clientX : event.clientY
-                log("mousedown")
                 _this.container.addEventListener("mousemove", mouseMove)
                 _this.container.addEventListener("mouseup", mouseUp)
             }
-            _this.container.addEventListener('mouseout', (event)=>{
-                event = event || window.event
-                let target = event.target
-                if(target !== _this.bars[0] && event.target !== _this.bars[1])
-                    return
-                log("mouseout")
-                if(!_this.isScrolling){
-                    target.style.backgroundColor = _this.options.foregroundColor.normal
+            for (let i = 0; i < 2; i++) {
+                if(_this.bars[i]){
+                    log(_this.bars[i])
+                    _this.bars[i].addEventListener('mouseout', (event)=>{
+                        log("mouseout")
+                        event = event || window.event
+                        let target = event.target
+                        if(!_this.isScrolling){
+                            target.style.backgroundColor = _this.options.foregroundColor.normal
+                        }
+                        _this.bars[i].removeEventListener('mousedown', mouseDown)
+                    })
+                    _this.bars[i].addEventListener('mouseover', (event)=>{
+                        log("mouseover")
+                        event = event || window.event
+                        let target = event.target
+                        if(!_this.isScrolling){
+                            target.style.backgroundColor = _this.options.foregroundColor.hover
+                        }
+                        _this.bars[i].addEventListener('mousedown', mouseDown)
+                    })
                 }
-                _this.container.removeEventListener('mousedown', f)
-            })
-            _this.container.addEventListener('mouseover', (event)=>{
-                event = event || window.event
-                let target = event.target
-                if(target !== _this.bars[0] && event.target !== _this.bars[1])
-                    return
-                log("mouseover")
-                if(!_this.isScrolling){
-                    target.style.backgroundColor = _this.options.foregroundColor.hover
-                }
-                _this.container.addEventListener('mousedown', f)
-            })
+            }
         },
         //操作滚动条的运动
         movement: function(){
@@ -314,6 +321,7 @@
         },
         //容器宽高变化时更新滚动条的长度
         refresh: function(){
+            log("refresh")
             this.isScrolling = false
             this.isHorizontal = false
             this.targetPos = 0
