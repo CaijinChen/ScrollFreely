@@ -91,13 +91,14 @@
         }
         this.bars = [null, null]
         this.container = null
-        this.body = this.find(content)
+        this.body = null
         this.event = new Event()
         this.speed = 0
         this.isScrolling = false
         this.isHorizontal = false
         this.targetPos = 0
         this.tempData = 0
+        this.find(content)
         this.init()
         this.event.on("bodyChange", this.refresh.bind(this))
     }
@@ -105,7 +106,6 @@
     Object.assign(ScrollFreely.prototype, {
         //获取内容块，内容块是需要被滚动条包装的节点
         find: function(inner){
-            let body = null;
             if(!inner){
                 console.error("no content is specified.")
             }else{
@@ -113,22 +113,30 @@
                 if(!content){
                     console.error("content you specified is not exists")
                 }else{
-                    body = doc.createElement("div")
-                    this.container = doc.createElement('div')
+                    let temp = content.nextSibling
                     let parent = content.parentElement
-                    parent.appendChild(this.container)
-                    body.appendChild(content)
-                    this.container.appendChild(body)
-                    body.style.cssText = "position:absolute;top:0;left:0;"
+                    let fragment = document.createDocumentFragment()
+
+                    this.body = doc.createElement("div")
+                    this.container = doc.createElement('div')
+                    this.body.style.cssText = "position:absolute;top:0;left:0;"
                     this.container.style.cssText = "overflow:hidden;position:relative"
                         + ";width:" + this.options.containerWidth
                         + ";height:" + this.options.containerHeight
                     if(this.options.containerStyle){
                         this.body.classList.add(this.options.containerStyle)
                     }
+
+                    this.body.appendChild(document.adoptNode(content))
+                    this.container.appendChild(this.body)
+                    fragment.appendChild(this.container)
+                    if(temp){
+                        parent.insertBefore(fragment, temp)
+                    }else{
+                        parent.appendChild(fragment)
+                    }
                 }
             }
-            return body
         },
         //初始化，创建样式，创建导航条等等
         init: function(){
@@ -157,7 +165,7 @@
                     bar.style.borderRadius = Math.floor(this.options.width / 2) + "px"
                 }
                 bk.appendChild(bar)
-                this.container.appendChild(bk)
+                this.container.insertBefore(bk, this.body)
                 this.bars[0] = bar
             }else if(this.bars[0]){
                 if(this.contentWidth() > this.width()){
@@ -183,7 +191,7 @@
                     bar.style.borderRadius = Math.floor(this.options.width / 2) + "px"
                 }
                 bk.appendChild(bar)
-                this.container.appendChild(bk)
+                this.container.insertBefore(bk, this.body)
                 this.bars[1] = bar
             }else if(this.bars[1]){
                 if(this.contentHeight() > this.height()){
